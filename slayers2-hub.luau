@@ -16537,10 +16537,6 @@ function PlayerMods.dropFly()
 		PlayerMods.FlyForce:Destroy()
 		PlayerMods.FlyForce = nil
 	end
-	if PlayerMods.FlyAttach then
-		PlayerMods.FlyAttach:Destroy()
-		PlayerMods.FlyAttach = nil
-	end
 end
 
 function PlayerMods.stepFly()
@@ -16553,19 +16549,12 @@ function PlayerMods.stepFly()
 	local force = PlayerMods.FlyForce
 	if not force or force.Parent ~= root then
 		PlayerMods.dropFly()
-		local attachment = Instance.new("Attachment")
-		attachment.Name = "FlyAttach"
-		attachment.Parent = root
-		force = Instance.new("LinearVelocity")
-		force.Name = "FlyForce"
-		force.Attachment0 = attachment
-		force.RelativeTo = Enum.ActuatorRelativeTo.World
-		force.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-		force.MaxForce = 1e4
-		force.VectorVelocity = Vector3.zero
+		force = Instance.new("BodyVelocity")
+		force.MaxForce = Vector3.one * math.huge
+		force.P = 1e4
+		force.Velocity = Vector3.zero
 		force.Parent = root
 		PlayerMods.FlyForce = force
-		PlayerMods.FlyAttach = attachment
 	end
 	local view = camera.CFrame
 	local _, yaw = view:ToOrientation()
@@ -16582,7 +16571,7 @@ function PlayerMods.stepFly()
 	if direction.Magnitude > 1 then
 		direction = direction.Unit
 	end
-	force.VectorVelocity = direction * Settings.FlySpeed
+	force.Velocity = direction * Settings.FlySpeed
 end
 
 function PlayerMods.jump()
