@@ -390,61 +390,6 @@ function Hub.addInterfaceControls(box, Window)
 	})
 end
 
-function Hub.addLinkButtons(box, Airflow)
-	local function copyUrl(label, url)
-		local clipboard = setclipboard or toclipboard or set_clipboard or writeclipboard
-		if type(clipboard) ~= "function" then
-			local notify = Airflow and Airflow.Notify
-			if type(notify) == "function" then
-				pcall(notify, Airflow, {
-					Title = "Supreme Hub",
-					Content = "Clipboard copy is not supported by this executor.",
-					Type = "Warning",
-					Icon = "copy",
-					Duration = 4,
-				})
-			end
-			return
-		end
-
-		local ok, err = pcall(clipboard, url)
-		local notify = Airflow and Airflow.Notify
-		if type(notify) == "function" then
-			pcall(notify, Airflow, {
-				Title = "Supreme Hub",
-				Content = ok and (label .. " copied to clipboard.") or ("Copy failed: " .. tostring(err)),
-				Type = ok and "Success" or "Error",
-				Icon = "copy",
-				Duration = 4,
-			})
-		elseif type(Hub.Notify) == "function" then
-			pcall(Hub.Notify, {
-				Title = "Supreme Hub",
-				Content = ok and (label .. " copied to clipboard.") or ("Copy failed: " .. tostring(err)),
-				Type = ok and "Success" or "Error",
-				Icon = "copy",
-				Duration = 4,
-			})
-		end
-	end
-
-	box:CreateButton({
-		Name = "Copy Follow Link",
-		Icon = "heart",
-		Callback = function()
-			copyUrl("Follow link", "https://rscripts.net/@_LSS")
-		end,
-	})
-
-	box:CreateButton({
-		Name = "Copy Join Hub Link",
-		Icon = "link",
-		Callback = function()
-			copyUrl("Join Hub link", "https://rscripts.net/hub/lss")
-		end,
-	})
-end
-
 function Hub.addUnloadButton(box, Airflow, unload)
 	box:CreateButton({
 		Name = "Unload",
@@ -1240,7 +1185,6 @@ local function runMainMenu()
 	local InterfaceBox = SettingsTab:AddLeftGroupbox({ Name = "Menu", Icon = "monitor" })
 
 	Hub.addInterfaceControls(InterfaceBox, Window)
-	Hub.addLinkButtons(InterfaceBox, Airflow)
 	InterfaceBox:CreateDivider()
 
 	InterfaceBox:CreateToggle({
@@ -25270,7 +25214,6 @@ local SettingsTab = Window:CreateTab({ Name = "Settings", Desc = SCRIPT_VERSION,
 local InterfaceBox = SettingsTab:AddLeftGroupbox({ Name = "Menu", Icon = "monitor" })
 
 Hub.addInterfaceControls(InterfaceBox, Window)
-Hub.addLinkButtons(InterfaceBox, Airflow)
 
 InterfaceBox:CreateDivider()
 
