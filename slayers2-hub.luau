@@ -29,8 +29,6 @@ if GlobalEnv[INSTANCE_KEY] and type(GlobalEnv[INSTANCE_KEY].Unload) == "function
 end
 
 local Hub = {
-	CLOUD_URL = "http://78.154.103.47:10872",
-	CLOUD_KEY = "d96891068ec57aa5a608f0de8eb00d3f57fea273e07c8191",
 	WORLD_CONFIG = "Ouroboros/Slayer 2",
 	MENU_CONFIG = "Ouroboros/Slayer 2 Menu",
 	DUNGEON_CONFIG = "Ouroboros/Slayer 2 Dungeons",
@@ -20561,121 +20559,7 @@ if Window.Gui then
 	end))
 end
 
-local Cloud = {
-	OWNER_FILE = "Ouroboros/Slayer 2 Cloud Owner.txt",
-	PRIVATE_FLAGS = { WebhookUrl = true, WebhookUserId = true, PanicWhitelistNames = true, MenuPrivateOwner = true },
-	TAGS = { "Farming", "Bosses", "Quests", "Dungeon", "Combat", "Safe", "AFK" },
-}
-
-function Cloud.ownerKey()
-	if Cloud.Owner then
-		return Cloud.Owner
-	end
-	local key
-	pcall(function()
-		if isfile(Cloud.OWNER_FILE) then
-			local text = string.lower(tostring(readfile(Cloud.OWNER_FILE)))
-			if #text >= 32 and #text <= 64 and not string.find(text, "[^%x]") then
-				key = text
-			end
-		end
-	end)
-	if not key then
-		key = string.lower((string.gsub(HttpService:GenerateGUID(false) .. HttpService:GenerateGUID(false), "-", "")))
-		pcall(writefile, Cloud.OWNER_FILE, key)
-	end
-	Cloud.Owner = key
-	return key
-end
-
-function Cloud.call(method, path, body)
-	if not Webhook.Request then
-		return nil, "Your executor can't make web requests"
-	end
-	local ok, response = pcall(Webhook.Request, {
-		Url = Hub.CLOUD_URL .. path,
-		Method = method,
-		Headers = {
-			["Content-Type"] = "application/json",
-			["X-Key"] = Hub.CLOUD_KEY,
-			["X-User"] = tostring(LocalPlayer.UserId),
-			["X-Owner"] = Cloud.ownerKey(),
-		},
-		Body = body and HttpService:JSONEncode(body) or nil,
-	})
-	if not ok or type(response) ~= "table" then
-		return nil, "Cloud server is offline"
-	end
-	local status = tonumber(response.StatusCode) or 0
-	local decoded, data = pcall(HttpService.JSONDecode, HttpService, tostring(response.Body or ""))
-	data = decoded and type(data) == "table" and data or nil
-	if status < 200 or status >= 300 or not data then
-		if data and type(data.error) == "string" then
-			return nil, data.error
-		end
-		return nil, status == 0 and "Cloud server is offline" or "Cloud server error (" .. status .. ")"
-	end
-	return data
-end
-
-function Cloud.private(entry)
-	if type(entry) ~= "table" then
-		return false
-	end
-	for _, value in pairs(entry) do
-		if type(value) == "string" and string.find(string.lower(value), "discord%a*%.com/api/webhooks") then
-			return true
-		end
-	end
-	return false
-end
-
-function Cloud.shareable(code)
-	local flags, info = Window:DecodeConfig(code)
-	if not flags then
-		return nil, "The config code is invalid"
-	end
-	local kept, count = {}, 0
-	for flag, entry in pairs(flags) do
-		if not Cloud.PRIVATE_FLAGS[flag] and not Cloud.private(entry) then
-			kept[flag] = entry
-			count += 1
-		end
-	end
-	if count == 0 then
-		return nil, "There are no settings to share"
-	end
-	return HttpService:JSONEncode({
-		Folder = info.Folder or Window.ConfigFolder,
-		Name = info.Name,
-		Version = info.Version,
-		Config = HttpService:JSONEncode(kept),
-	})
-end
-
-function Cloud.encode(text)
-	return HttpService:UrlEncode(tostring(text or ""))
-end
-
-function Cloud.body(config, code)
-	return {
-		name = config.Name,
-		description = config.Description,
-		tags = config.Tags,
-		code = code,
-		folder = config.Folder,
-	}
-end
-
-function Cloud.post(record, action, body)
-	local data, reason = Cloud.call("POST", "/configs/" .. Cloud.encode(record.Id) .. "/" .. action, body or {})
-	if not data then
-		return false, reason
-	end
-	return data
-end
-
-function Cloud.names(entry)
+local function configSelectionNames(entry)
 	local names = {}
 	if type(entry) == "table" and type(entry.Value) == "table" then
 		for key, value in pairs(entry.Value) do
@@ -20690,18 +20574,18 @@ function Cloud.names(entry)
 	return names
 end
 
-function Cloud.sellWarning(code)
+local function configSellWarning(code)
 	local flags = Window:DecodeConfig(code)
 	local entry = type(flags) == "table" and flags.AutoSell
 	if type(entry) ~= "table" or entry.Value ~= true then
 		return nil
 	end
 	local text = "This config turns on Auto Sell, so it can sell items from your inventory without asking."
-	local rarities = Cloud.names(flags.SellRarities)
+	local rarities = configSelectionNames(flags.SellRarities)
 	if #rarities > 0 then
 		text ..= " Rarities it sells: " .. table.concat(rarities, ", ") .. "."
 	end
-	local items = Cloud.names(flags.SellItems)
+	local items = configSelectionNames(flags.SellItems)
 	if #items > 0 then
 		text ..= " It also sells " .. #items .. " specific item" .. (#items == 1 and "" or "s") .. "."
 	end
@@ -20711,7 +20595,7 @@ end
 do
 	local importConfig = Window.ImportConfig
 	Window.ImportConfig = function(self, code, saveAs, force)
-		local warning = Cloud.sellWarning(code)
+		local warning = configSellWarning(code)
 		if not warning then
 			return importConfig(self, code, saveAs, force)
 		end
