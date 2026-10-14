@@ -113,7 +113,7 @@ do
         make("UIStroke", {Color = Color3.fromRGB(36, 36, 36), Thickness = 1}, box)
         return box
     end
-    local keyBox = input("Cole sua licença aqui...", 80)
+    local keyBox = input("Paste your license key...", 80)
 
     local keyFile = "supreme-keyauth-license.txt"
     local savedKey
@@ -127,7 +127,7 @@ do
 
     -- Status
     local status = make("TextLabel", {
-        Text = "Sua key será salva localmente após validação.",
+        Text = "Your key will be saved locally after validation.",
         Position = UDim2.fromOffset(18, 188),
         Size = UDim2.new(1, -36, 0, 52),
         BackgroundTransparency = 1,
@@ -289,7 +289,7 @@ if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 
-local SCRIPT_VERSION = "Beta"
+local SCRIPT_VERSION = "v0.1"
 local UI_SOURCE_URL = "https://pastefy.app/9vgkDsd2/raw"
 local INSTANCE_KEY = "__Slayer2Hub"
 
