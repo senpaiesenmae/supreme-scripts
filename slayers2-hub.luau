@@ -1,3 +1,111 @@
+-- Luau | Supreme KeyAuth gate | Roblox client with HTTPS request support.
+do
+    local http = game:GetService("HttpService")
+    local player = game:GetService("Players").LocalPlayer
+    local env = getgenv()
+    local requestFn = request or http_request or (syn and syn.request)
+    local app = {name = "Makeyvinicius's Application", ownerid = "BS3eBX42yZ", ver = "1.0"}
+    local function callApi(fields)
+        fields.name, fields.ownerid = app.name, app.ownerid
+        local query = {}
+        for k, v in pairs(fields) do
+            query[#query + 1] = http:UrlEncode(k) .. "=" .. http:UrlEncode(tostring(v))
+        end
+        local finished, response, succeeded = false, nil, false
+        task.spawn(function()
+            succeeded, response = pcall(requestFn, {Url = "https://keyauth.win/api/1.3/?" .. table.concat(query, "&"), Method = "GET"})
+            finished = true
+        end)
+        local deadline = os.clock() + 20
+        while not finished and os.clock() < deadline do task.wait(0.05) end
+        if not finished then return nil, "Tempo esgotado. Tente novamente." end
+        if not succeeded or type(response) ~= "table" then return nil, "Falha de conexao com KeyAuth." end
+        if tonumber(response.StatusCode) ~= 200 then return nil, "KeyAuth HTTP " .. tostring(response.StatusCode) end
+        local ok, data = pcall(http.JSONDecode, http, response.Body or "")
+        if not ok or type(data) ~= "table" then return nil, "Resposta invalida do KeyAuth." end
+        return data
+    end
+    if type(requestFn) ~= "function" then
+        warn("[Supreme] KeyAuth exige request/http_request neste executor.")
+        return
+    end
+    if env.__SupremeAuthCancel then pcall(env.__SupremeAuthCancel) end
+    local gui = Instance.new("ScreenGui")
+    gui.Name, gui.ResetOnSpawn, gui.DisplayOrder = "SupremeLicense", false, 1000
+    gui.Parent = player:WaitForChild("PlayerGui")
+    local closed, accepted, busy, session = false, false, false, nil
+    local function cancel() closed = true; gui:Destroy() end
+    env.__SupremeAuthCancel = cancel
+    local function make(class, props, parent)
+        local o = Instance.new(class)
+        for k, v in pairs(props) do o[k] = v end
+        o.Parent = parent
+        return o
+    end
+    local panel = make("Frame", {Size = UDim2.fromOffset(360, 290), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Color3.fromRGB(20, 20, 28), BorderSizePixel = 0}, gui)
+    make("UICorner", {CornerRadius = UDim.new(0, 14)}, panel)
+    make("UIStroke", {Color = Color3.fromRGB(130, 85, 230), Thickness = 1}, panel)
+    local function label(text, y, height)
+        return make("TextLabel", {Text = text, Position = UDim2.fromOffset(20, y), Size = UDim2.new(1, -40, 0, height), BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(230, 230, 240), Font = Enum.Font.Gotham, TextSize = 14, TextWrapped = true}, panel)
+    end
+    label("SUPREME  /  KEYAUTH", 16, 30)
+    local function input(placeholder, y)
+        local box = make("TextBox", {PlaceholderText = placeholder, Text = "", ClearTextOnFocus = false, Position = UDim2.fromOffset(20, y), Size = UDim2.new(1, -40, 0, 38), BackgroundColor3 = Color3.fromRGB(33, 33, 45), TextColor3 = Color3.new(1, 1, 1), TextSize = 14, Font = Enum.Font.Gotham}, panel)
+        make("UICorner", {CornerRadius = UDim.new(0, 8)}, box)
+        return box
+    end
+    local keyBox = input("Cole sua licenca", 58)
+    local otpBox = input("Codigo 2FA (se habilitado)", 106)
+    local status = label("Insira sua licenca para abrir o painel.", 200, 64)
+    local submit = make("TextButton", {Text = "Validar licenca", Position = UDim2.fromOffset(20, 156), Size = UDim2.new(1, -40, 0, 36), BackgroundColor3 = Color3.fromRGB(119, 74, 216), TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.GothamBold, TextSize = 14}, panel)
+    make("UICorner", {CornerRadius = UDim.new(0, 8)}, submit)
+    local close = make("TextButton", {Text = "X", Position = UDim2.new(1, -30, 0, 4), Size = UDim2.fromOffset(26, 26), BackgroundTransparency = 1, TextColor3 = Color3.new(1, 1, 1), TextSize = 14}, panel)
+    close.Activated:Connect(cancel)
+    gui.Destroying:Connect(function() closed = true end)
+    submit.Activated:Connect(function()
+        if busy or closed then return end
+        local key = keyBox.Text:match("^%s*(.-)%s*$")
+        if key == "" then status.Text = "Insira a licenca."; return end
+        busy = true
+        submit.Text, status.Text = "Validando...", "Conectando ao KeyAuth..."
+        local ok, err = pcall(function()
+            if not session then
+                local data, reason = callApi({type = "init", ver = app.ver})
+                if closed then return end
+                if not data or data.success ~= true or type(data.sessionid) ~= "string" or data.sessionid == "" then
+                    status.Text = reason or tostring(data and data.message or "Inicializacao recusada.")
+                    return
+                end
+                session = data.sessionid
+            end
+            local fields = {type = "license", key = key, sessionid = session}
+            local otp = otpBox.Text:match("^%s*(.-)%s*$")
+            if otp ~= "" then fields.code = otp end
+            if type(gethwid) == "function" then
+                local hwOk, hw = pcall(gethwid)
+                if hwOk and type(hw) == "string" and hw ~= "" then fields.hwid = hw end
+            end
+            local data, reason = callApi(fields)
+            if closed then return end
+            if data and data.success == true then
+                accepted = true
+                keyBox.Text, otpBox.Text = "", ""
+                gui:Destroy()
+            else
+                status.Text = reason or tostring(data and data.message or "Licenca recusada.")
+            end
+        end)
+        busy = false
+        if not closed then
+            submit.Text = "Validar licenca"
+            if not ok then status.Text = "Falha ao validar. Tente novamente." end
+        end
+    end)
+    while not closed do task.wait(0.1) end
+    if env.__SupremeAuthCancel == cancel then env.__SupremeAuthCancel = nil end
+    if not accepted then return end
+end
+
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
