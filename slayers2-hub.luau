@@ -1540,7 +1540,7 @@ local Const = {
 	SNAP_DISTANCE = 1.5,
 	DASH_NEW_TARGET = 25,
 	CLOSE_DISTANCE = 40,
-	TWEEN_ACCEL = 60,
+	TWEEN_ACCEL = 38,
 	HORSE_MIN_DISTANCE = 40,
 	HORSE_KEEP_DISTANCE = 30,
 	HORSE_NOTICE_INTERVAL = 60,
@@ -3474,7 +3474,7 @@ function Mover.stabilize(root, enabled)
 		hold.Attachment0 = attachment
 		hold.RelativeTo = Enum.ActuatorRelativeTo.World
 		hold.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
-		hold.MaxForce = math.huge
+		hold.MaxForce = 1e4
 		hold.VectorVelocity = Vector3.zero
 		hold.Parent = root
 		for _, state in ipairs(Const.BODY_STATES) do
@@ -3540,8 +3540,8 @@ function Mover.step(dt)
 	if Mover.horseTravel(root, goal, offset, distance, dt, now) then
 		return
 	end
-	Mover.dashTravel(lease, root, goal, offset, distance, dt, now)
-	Mover.stabilize(root, true)
+	-- glide usa velocity por frame, menos agressivo que dashTravel+CFrame direto
+	Mover.glide(root, goal, offset, distance, dt, now, Settings.FlySpeed)
 end
 
 function Mover.traveling()
